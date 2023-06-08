@@ -33,7 +33,6 @@ def get_upload_url(params):
     url = 'https://api.vk.com/method/photos.getWallUploadServer'
     uploading_address = requests.post(url, params=params)
     uploading_address = uploading_address.json()
-    print(uploading_address)
     if uploading_address:
         return uploading_address['response']['upload_url']
 
