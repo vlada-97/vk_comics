@@ -11,89 +11,76 @@ import requests
 from dotenv import load_dotenv
 
 
-def generate_random_comics():
+def choose_random_comics_num():
     xkcd_last_url = 'https://xkcd.com/info.0.json'
     response = requests.get(xkcd_last_url)
     response.raise_for_status()
     response = response.json()
 
-    last_comics = response['num']
-    random_comics = random.randint(2, last_comics)
-    return random_comics
+    last_comics_num = response['num']
+    return random.randint(2, last_comics_num)
 
 
-def get_image(response):
-    img = response.get('img')
-    comment = response.get("alt")
-    title = response.get('title')
-    title = re.sub(r'\W', ' ', title)
-
+def get_image(img):
     response = requests.get(img)
-    with open(os.path.join(path, rf'{title}.png'), 'wb') as file:
-        file.write(response.content)
-    return response, title, comment
-
-
-def get_token():
-    autorize_url = 'https://oauth.vk.com/authorize'
-    params = {
-        'client_id': client_id,
-        'redirect_uri': redirect_uri,
-        'display': 'popup',
-        'response_type': 'token',
-        'scope': 'scope=photos,groups,wall',
-        'v': 5.131
-    }
-    response = requests.post(autorize_url, params=params)
-    token_link = response.url  # follow the link
-
-
-def saveServerPhoto(title, params):
-    photo = {
-        'photo': open(os.path.join(path, rf'{title}.png'), 'rb')
-    }
-    response = requests.post(upload_url, params=params, files=photo)
     response.raise_for_status()
-    response = response.json()
-    return response
+    if response.ok:
+        with open(os.path.join(path, rf'{title}.png'), 'wb') as file:
+            file.write(response.content)
 
 
-def saveWallPhoto(response, params, comment):
+def get_upload_url(params):
+    url = 'https://api.vk.com/method/photos.getWallUploadServer'
+    uploading_address = requests.post(url, params=params)
+    uploading_address = uploading_address.json()
+    print(uploading_address)
+    if uploading_address:
+        return uploading_address['response']['upload_url']
+
+
+def save_server_photo(upload_url, title, params):
+    with open(os.path.join(path, rf'{title}.png'), 'rb') as file:
+        photo = {
+            'photo': file
+        }
+        response = requests.post(upload_url, params=params, files=photo)
+        response.raise_for_status()
+        response = response.json()
+    return response['photo'], response['server'], response['hash']
+
+
+def save_wall_photo(photo, server, hash, params, comment):
     save_url = 'https://api.vk.com/method/photos.saveWallPhoto'
     params.update({
-        "photo": response['photo'],
-        'server': response['server'],
-        'hash': response['hash'],
+        "photo": photo,
+        'server': server,
+        'hash': hash,
         'caption': comment
     })
-    response_save = requests.post(save_url, params=params)
-    response_save.raise_for_status()
-    response_save = response_save.json()
-    return response_save
+    response = requests.post(save_url, params=params)
+    response.raise_for_status()
+    response = response.json()
+    return response['response'][0]['owner_id'], response['response'][0]['id']
 
 
-def post_wall_photo(response, params, comment):
+def post_wall_photo(owner_id, id, params, comment):
     post_url = 'https://api.vk.com/method//wall.post'
-    response = response['response']
     attachment = 'photo{0}_{1}'.format(
-        response[0]['owner_id'], response[0]['id'])
+        owner_id, id)
     params.update({
-        'owner_id': f'-{group_id}',
+        'owner_id': f'-{vk_group_id}',
         'from_group': 1,
         'attachments': attachment,
         'message': comment
     })
-    response_save = requests.post(post_url, params=params)
-    response_save.raise_for_status()
+    response = requests.post(post_url, params=params)
+    response.raise_for_status()
 
 
 if __name__ == '__main__':
     load_dotenv()
-    group_id = os.environ["group_id"]
-    client_id = os.environ["client_id"]
-    upload_url = os.environ["upload_url"]
-    access_token = os.environ["access_token"]
-    redirect_uri = os.environ["redirect_uri"]
+    vk_group_id = os.environ["VK_GROUP_ID"]
+    vk_access_token = os.environ["VK_ACCESS_TOKEN"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", default='comics',
@@ -103,25 +90,32 @@ if __name__ == '__main__':
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
     params = {
-        'access_token': access_token,
-        'group_id': group_id,
+        'access_token': vk_access_token,
+        'group_id': vk_group_id,
         'v': 5.131
     }
     try:
-        random_num = generate_random_comics()
+        random_num = choose_random_comics_num()
         url = f'https://xkcd.com/{random_num}/info.0.json'
         response = requests.get(url)
         response.raise_for_status()
         response = response.json()
 
-        response_img, title_img, comment_img = get_image(response)
-        response_saveServer = saveServerPhoto(title_img, params)
-        response_saveWall = saveWallPhoto(
-            response_saveServer, params, comment_img)
-        post_wall_photo(response_saveWall, params, comment_img)
-        os.remove(f"{path}/{title_img}.png")
+        img = response.get('img')
+        comment = response.get("alt")
+        title = response.get('title')
+        title = re.sub(r'\W', ' ', title)
+        get_image(img)
+
+        upload_url = get_upload_url(params)
+        photo, server, hash = save_server_photo(upload_url, title, params)
+        owner_id, id = save_wall_photo(
+            photo, server, hash, params, comment)
+        post_wall_photo(owner_id, id, params, comment)
     except (OSError, FileNotFoundError) as ex:
         logging.error(ex)
     except (ConnectionError, RuntimeError) as ex:
         time.sleep(60)
         logging.error(ex)
+    finally:
+        os.remove(f"{path}/{title}.png")
