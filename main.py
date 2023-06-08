@@ -64,8 +64,7 @@ def save_wall_photo(photo, server, hash, params, comment):
 
 def post_wall_photo(owner_id, id, params, comment):
     post_url = 'https://api.vk.com/method//wall.post'
-    attachment = 'photo{0}_{1}'.format(
-        owner_id, id)
+    attachment = f'photo{owner_id}_{id}'
     params.update({
         'owner_id': f'-{vk_group_id}',
         'from_group': 1,

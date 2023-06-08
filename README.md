@@ -14,8 +14,8 @@ pip install -r requirements.txt
 
 | Переменная | Где взять |
 |----------|----------|
-| [group_id] | id группы вк. Узнать по [ссылке](https://regvk.com/id/)  |
-| [access_token] | личный токен доступа, необходимый для подключения к api сайта [vk.com.](https://vk.com/) Для получения секретного токена рекомендуется использовать процедуру [Implicit Flow](https://vk.com/dev/implicit_flow_user) |
+| [VK_GROUP_ID] | id группы вк. Узнать по [ссылке](https://regvk.com/id/)  |
+| [VK_ACCESS_TOKEN] | личный токен доступа, необходимый для подключения к api сайта [vk.com.](https://vk.com/) Для получения секретного токена рекомендуется использовать процедуру [Implicit Flow](https://vk.com/dev/implicit_flow_user) |
 
 ## Параметры
 
