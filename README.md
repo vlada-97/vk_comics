@@ -14,10 +14,7 @@ pip install -r requirements.txt
 
 | Переменная | Где взять |
 |----------|----------|
-| [redirect_uri] | адрес, на который перенаправят пользователя после авторизации |
 | [group_id] | id группы вк. Узнать по [ссылке](https://regvk.com/id/)  |
-| [client_id] | id клиента вк. Узнать в [настройках вашего приложения](https://vk.com/apps?act=manage), раздел 'Редактировать'  |
-| [upload_url] | ссылка для отправки фотографий на сервер. Получить методом [getWallUploadServer](https://vk.com/dev/photos.getWallUploadServer) |
 | [access_token] | личный токен доступа, необходимый для подключения к api сайта [vk.com.](https://vk.com/) Для получения секретного токена рекомендуется использовать процедуру [Implicit Flow](https://vk.com/dev/implicit_flow_user) |
 
 ## Параметры
