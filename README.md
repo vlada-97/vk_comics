@@ -12,10 +12,17 @@ pip install -r requirements.txt
 
 ## Переменные окружения
 
+Для настройки перемнных окружения нужно рядом со скриптом положить файл .env в виде:
+
+```python
+VK_GROUP_ID=743596
+VK_ACCESS_TOKEN= **секретный токен**
+```
+
 | Переменная | Где взять |
 |----------|----------|
-| [VK_GROUP_ID] | id группы вк. Узнать по [ссылке](https://regvk.com/id/)  |
-| [VK_ACCESS_TOKEN] | личный токен доступа, необходимый для подключения к api сайта [vk.com.](https://vk.com/) Для получения секретного токена рекомендуется использовать процедуру [Implicit Flow](https://vk.com/dev/implicit_flow_user) |
+| VK_GROUP_ID | id группы вк. Узнать по [ссылке](https://regvk.com/id/)  |
+| VK_ACCESS_TOKEN | личный токен доступа, необходимый для подключения к api сайта [vk.com.](https://vk.com/) Для получения секретного токена рекомендуется использовать процедуру [Implicit Flow](https://vk.com/dev/implicit_flow_user) |
 
 ## Параметры
 
