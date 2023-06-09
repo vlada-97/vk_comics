@@ -10,6 +10,13 @@ import requests
 from dotenv import load_dotenv
 
 
+class VKapiError(BaseException):
+    def __init__(self, response, message='VK Api error!'):
+        self.response = response['error']['error_msg']
+        self.message = message
+        super().__init__(f'{self.message}: {self.response}')
+
+
 def choose_random_comics_num():
     xkcd_last_url = 'https://xkcd.com/info.0.json'
     response = requests.get(xkcd_last_url)
@@ -27,43 +34,42 @@ def get_image(img):
         file.write(response.content)
 
 
-def get_upload_url(params):
+def get_upload_url(access_token, group_id, vk_version):
     url = 'https://api.vk.com/method/photos.getWallUploadServer'
     uploading_address = requests.post(url, params={
-        'access_token': params['access_token'],
-        'group_id': params['group_id'],
-        'v': params['v']
+        'access_token': access_token,
+        'group_id': group_id,
+        'v': vk_version
     })
+    uploading_address.raise_for_status()
     uploading_address = uploading_address.json()
-    if uploading_address:
-        return uploading_address['response']['upload_url']
+    return uploading_address
 
 
-def save_server_photo(upload_url, title, params):
+def save_server_photo(upload_url, title, access_token, group_id, vk_version):
     with open(os.path.join(path, rf'{title}.png'), 'rb') as file:
         photo = {
             'photo': file
         }
         response = requests.post(upload_url, params={
-            'access_token': params['access_token'],
-            'group_id': params['group_id'],
-            'v': params['v']
+            'access_token': access_token,
+            'group_id': group_id,
+            'v': vk_version
         }, files=photo)
-        file.close()
-        response.raise_for_status()
-        response = response.json()
+    response.raise_for_status()
+    response = response.json()
     return response['photo'], response['server'], response['hash']
 
 
-def save_wall_photo(photo, server, hash, params, comment):
+def save_wall_photo(photo, server, photo_hash, access_token, group_id, vk_version, comment):
     save_url = 'https://api.vk.com/method/photos.saveWallPhoto'
     params = {
-        'access_token': params['access_token'],
-        'group_id': params['group_id'],
-        'v': params['v'],
+        'access_token': access_token,
+        'group_id': group_id,
+        'v': vk_version,
         "photo": photo,
         'server': server,
-        'hash': hash,
+        'hash': photo_hash,
         'caption': comment
     }
     response = requests.post(save_url, params=params)
@@ -72,13 +78,13 @@ def save_wall_photo(photo, server, hash, params, comment):
     return response['response'][0]['owner_id'], response['response'][0]['id']
 
 
-def post_wall_photo(owner_id, photo_id, params, comment):
+def post_wall_photo(owner_id, photo_id, access_token, group_id, vk_version, comment):
     post_url = 'https://api.vk.com/method//wall.post'
     attachment = f'photo{owner_id}_{photo_id}'
     params = {
-        'access_token': params['access_token'],
-        'group_id': params['group_id'],
-        'v': params['v'],
+        'access_token': access_token,
+        'group_id': group_id,
+        'v': vk_version,
         'owner_id': f'-{vk_group_id}',
         'from_group': 1,
         'attachments': attachment,
@@ -118,15 +124,19 @@ if __name__ == '__main__':
         title = re.sub(r'\W', ' ', title)
         get_image(img)
 
-        upload_url = get_upload_url(params
-                                    )
-        photo, server, hash_photo = save_server_photo(
-            upload_url, title, params)
-        owner_id, photo_id = save_wall_photo(
-            photo, server, hash_photo, params, comment)
-        post_wall_photo(
-            owner_id, photo_id, params, comment)
-    except requests.exceptions.HTTPError as ex:
+        upload_url = get_upload_url(
+            params['access_token'], params['group_id'], params['v'])
+        if upload_url['error']['error_msg']:
+            raise VKapiError(upload_url)
+        else:
+            upload_url = upload_url['response']['upload_url']
+            photo, server, photo_hash = save_server_photo(
+                upload_url, title, params['access_token'], params['group_id'], params['v'])
+            owner_id, photo_id = save_wall_photo(
+                photo, server, photo_hash, params['access_token'], params['group_id'], params['v'], comment)
+            post_wall_photo(
+                owner_id, photo_id, params['access_token'], params['group_id'], params['v'], comment)
+    except VKapiError as ex:
         logging.error(ex)
     except (OSError, FileNotFoundError) as ex:
         logging.error(ex)
