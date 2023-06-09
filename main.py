@@ -5,7 +5,6 @@ import os
 import pathlib
 import random
 import re
-import time
 
 import requests
 from dotenv import load_dotenv
@@ -24,14 +23,17 @@ def choose_random_comics_num():
 def get_image(img):
     response = requests.get(img)
     response.raise_for_status()
-    if response.ok:
-        with open(os.path.join(path, rf'{title}.png'), 'wb') as file:
-            file.write(response.content)
+    with open(os.path.join(path, rf'{title}.png'), 'wb') as file:
+        file.write(response.content)
 
 
 def get_upload_url(params):
     url = 'https://api.vk.com/method/photos.getWallUploadServer'
-    uploading_address = requests.post(url, params=params)
+    uploading_address = requests.post(url, params={
+        'access_token': params['access_token'],
+        'group_id': params['group_id'],
+        'v': params['v']
+    })
     uploading_address = uploading_address.json()
     if uploading_address:
         return uploading_address['response']['upload_url']
@@ -42,7 +44,12 @@ def save_server_photo(upload_url, title, params):
         photo = {
             'photo': file
         }
-        response = requests.post(upload_url, params=params, files=photo)
+        response = requests.post(upload_url, params={
+            'access_token': params['access_token'],
+            'group_id': params['group_id'],
+            'v': params['v']
+        }, files=photo)
+        file.close()
         response.raise_for_status()
         response = response.json()
     return response['photo'], response['server'], response['hash']
@@ -50,27 +57,33 @@ def save_server_photo(upload_url, title, params):
 
 def save_wall_photo(photo, server, hash, params, comment):
     save_url = 'https://api.vk.com/method/photos.saveWallPhoto'
-    params.update({
+    params = {
+        'access_token': params['access_token'],
+        'group_id': params['group_id'],
+        'v': params['v'],
         "photo": photo,
         'server': server,
         'hash': hash,
         'caption': comment
-    })
+    }
     response = requests.post(save_url, params=params)
     response.raise_for_status()
     response = response.json()
     return response['response'][0]['owner_id'], response['response'][0]['id']
 
 
-def post_wall_photo(owner_id, id, params, comment):
+def post_wall_photo(owner_id, photo_id, params, comment):
     post_url = 'https://api.vk.com/method//wall.post'
-    attachment = f'photo{owner_id}_{id}'
-    params.update({
+    attachment = f'photo{owner_id}_{photo_id}'
+    params = {
+        'access_token': params['access_token'],
+        'group_id': params['group_id'],
+        'v': params['v'],
         'owner_id': f'-{vk_group_id}',
         'from_group': 1,
         'attachments': attachment,
         'message': comment
-    })
+    }
     response = requests.post(post_url, params=params)
     response.raise_for_status()
 
@@ -105,15 +118,19 @@ if __name__ == '__main__':
         title = re.sub(r'\W', ' ', title)
         get_image(img)
 
-        upload_url = get_upload_url(params)
-        photo, server, hash = save_server_photo(upload_url, title, params)
-        owner_id, id = save_wall_photo(
-            photo, server, hash, params, comment)
-        post_wall_photo(owner_id, id, params, comment)
+        upload_url = get_upload_url(params
+                                    )
+        photo, server, hash_photo = save_server_photo(
+            upload_url, title, params)
+        owner_id, photo_id = save_wall_photo(
+            photo, server, hash_photo, params, comment)
+        post_wall_photo(
+            owner_id, photo_id, params, comment)
+    except requests.exceptions.HTTPError as ex:
+        logging.error(ex)
     except (OSError, FileNotFoundError) as ex:
         logging.error(ex)
     except (ConnectionError, RuntimeError) as ex:
-        time.sleep(60)
         logging.error(ex)
     finally:
-        os.remove(f"{path}/{title}.png")
+        os.remove(os.path.join(path, rf'{title}.png'))
