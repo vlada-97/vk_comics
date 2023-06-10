@@ -57,6 +57,8 @@ def save_server_photo(upload_url, title, access_token, group_id, vk_version):
             'v': vk_version
         }, files=photo)
     response.raise_for_status()
+    if response['error']['error_msg']:
+        raise VKapiError(response)
     response = response.json()
     return response['photo'], response['server'], response['hash']
 
@@ -74,6 +76,8 @@ def save_wall_photo(photo, server, photo_hash, access_token, group_id, vk_versio
     }
     response = requests.post(save_url, params=params)
     response.raise_for_status()
+    if response['error']['error_msg']:
+        raise VKapiError(response)
     response = response.json()
     return response['response'][0]['owner_id'], response['response'][0]['id']
 
@@ -91,6 +95,9 @@ def post_wall_photo(owner_id, photo_id, access_token, group_id, vk_version, comm
         'message': comment
     }
     response = requests.post(post_url, params=params)
+    response = response.json()
+    if response['error']['error_msg']:
+        raise VKapiError(response)
     response.raise_for_status()
 
 
